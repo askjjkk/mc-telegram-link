@@ -1,0 +1,5 @@
+code-expiration-seconds: 300
+
+messages:
+  code-generated: "&aВаш код привязки Telegram: &e&l%code%"
+  code-instructions: "&eОтправьте эти 6 цифр боту в Telegram."

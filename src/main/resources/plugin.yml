@@ -1,0 +1,13 @@
+name: TelegramLink
+version: 1.0.0
+main: com.example.telegramlink.TelegramLinkPlugin
+api-version: '1.21'
+author: askjjkk
+description: Minecraft to Telegram Linking and Admin Plugin
+
+commands:
+  link:
+    description: Генерация 6-значного кода для привязки Telegram
+    usage: /link
+    permission: telegramlink.use
+    permission-message: У вас нет прав на выполнение этой команды.
