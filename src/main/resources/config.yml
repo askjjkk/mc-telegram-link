@@ -3,3 +3,11 @@ code-expiration-seconds: 300
 messages:
   code-generated: "&aВаш код привязки Telegram: &e&l%code%"
   code-instructions: "&eОтправьте эти 6 цифр боту в Telegram."
+
+# база PostgreSQL, те же данные нужны боту (DATABASE_URL в .env)
+database:
+  host: "ВАШ-ХОСТ.neon.tech"
+  port: 5432
+  name: "neondb"
+  user: "ВАШ_ПОЛЬЗОВАТЕЛЬ"
+  password: "ВАШ_ПАРОЛЬ"

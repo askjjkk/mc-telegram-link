@@ -20,15 +20,16 @@ public class TelegramLinkPlugin extends JavaPlugin implements CommandExecutor, L
 
     private Connection connection;
 
-    private final String DB_HOST = "ep-delicate-sun-b1x8znjr-pooler.c-5.eu-central-1.aws.neon.tech";
-    private final int DB_PORT = 5432;
-    private final String DB_NAME = "neondb";
-    private final String DB_USER = "neondb_owner";
-    private final String DB_PASS = "npg_20wOVsdFEUmg";
+    private String dbHost;
+    private int dbPort;
+    private String dbName;
+    private String dbUser;
+    private String dbPass;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        loadDatabaseSettings();
         initDatabase();
 
         if (getCommand("link") != null) {
@@ -48,10 +49,21 @@ public class TelegramLinkPlugin extends JavaPlugin implements CommandExecutor, L
         closeDatabase();
     }
 
+    private void loadDatabaseSettings() {
+        dbHost = getConfig().getString("database.host", "");
+        dbPort = getConfig().getInt("database.port", 5432);
+        dbName = getConfig().getString("database.name", "");
+        dbUser = getConfig().getString("database.user", "");
+        dbPass = getConfig().getString("database.password", "");
+        if (dbHost.isEmpty() || dbName.isEmpty() || dbUser.isEmpty()) {
+            getLogger().severe("Заполните раздел database в plugins/TelegramLink/config.yml и перезапустите сервер.");
+        }
+    }
+
     private synchronized Connection getConnection() throws SQLException {
         if (connection == null || connection.isClosed()) {
-            String url = "jdbc:postgresql://" + DB_HOST + ":" + DB_PORT + "/" + DB_NAME + "?sslmode=require";
-            connection = DriverManager.getConnection(url, DB_USER, DB_PASS);
+            String url = "jdbc:postgresql://" + dbHost + ":" + dbPort + "/" + dbName + "?sslmode=require";
+            connection = DriverManager.getConnection(url, dbUser, dbPass);
         }
         return connection;
     }

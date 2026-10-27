@@ -11,8 +11,11 @@ from aiogram.fsm.state import State, StatesGroup
 
 load_dotenv()
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8707690675:AAGoLcN1fsuE3fbVqJloAG9EBzy3l8Vqj9Y")
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://neondb_owner:npg_20wOVsdFEUmg@ep-delicate-sun-b1x8znjr-pooler.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not BOT_TOKEN or not DATABASE_URL:
+    raise SystemExit("Задайте BOT_TOKEN и DATABASE_URL в файле .env (см. .env.example)")
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
@@ -45,7 +48,7 @@ async def chat_broadcaster(pool):
 
                     for msg in messages:
                         if admins:
-                            formatted_text = f"💬 **[MC] {msg['player_name']}**: {msg['message']}"
+                            formatted_text = f"[MC] {msg['player_name']}: {msg['message']}"
                             for admin_id in admins:
                                 try:
                                     await bot.send_message(admin_id, formatted_text, parse_mode="Markdown")
@@ -77,11 +80,11 @@ async def cmd_set_password(message: types.Message):
         if existing_pass:
             is_admin = await conn.fetchrow("SELECT telegram_id FROM admins WHERE telegram_id = $1", telegram_id)
             if not is_admin:
-                await message.answer("❌ Менять пароль могут только авторизованные администраторы.")
+                await message.answer("Менять пароль могут только авторизованные администраторы.")
                 return
 
         await conn.execute("INSERT INTO settings (key, value) VALUES ('admin_password', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value", new_password)
-        await message.answer("✅ Пароль администратора успешно установлен!")
+        await message.answer("Пароль администратора установлен.")
 
 @dp.message(Command("t0ad"))
 async def cmd_t0ad(message: types.Message, state: FSMContext):
@@ -90,14 +93,14 @@ async def cmd_t0ad(message: types.Message, state: FSMContext):
 
     async with pool.acquire() as conn:
         if await conn.fetchrow("SELECT telegram_id FROM admins WHERE telegram_id = $1", telegram_id):
-            await message.answer("🔒 Вы уже авторизованы как администратор!\n\nВам доступен чат сервера и команда `/ban <ник> [причина]`.", parse_mode="Markdown")
+            await message.answer("Вы уже авторизованы как администратор!\n\nВам доступен чат сервера и команда `/ban <ник> [причина]`.", parse_mode="Markdown")
             return
         if not await conn.fetchrow("SELECT value FROM settings WHERE key = 'admin_password'"):
-            await message.answer("❌ Пароль еще не задан. Установите его командой `/t0adp <пароль>`.", parse_mode="Markdown")
+            await message.answer("Пароль еще не задан. Установите его командой `/t0adp <пароль>`.", parse_mode="Markdown")
             return
 
     await state.set_state(AdminAuth.waiting_for_password)
-    await message.answer("🔑 Введите пароль администратора:")
+    await message.answer("Введите пароль администратора:")
 
 @dp.message(AdminAuth.waiting_for_password)
 async def process_admin_password(message: types.Message, state: FSMContext):
@@ -110,9 +113,9 @@ async def process_admin_password(message: types.Message, state: FSMContext):
         if row and password_input == row['value']:
             now = int(time.time())
             await conn.execute("INSERT INTO admins (telegram_id, created_at) VALUES ($1, $2) ON CONFLICT (telegram_id) DO NOTHING", telegram_id, now)
-            await message.answer("✅ **Успешная авторизация!**\n\nТеперь вам транслируется чат сервера. Вы можете банить игроков командой:\n`/ban <ник> [причина]`", parse_mode="Markdown")
+            await message.answer("Вы вошли как администратор.\n\nТеперь вам транслируется чат сервера. Вы можете банить игроков командой:\n`/ban <ник> [причина]`", parse_mode="Markdown")
         else:
-            await message.answer("❌ Неверный пароль. Доступ отклонен.")
+            await message.answer("Неверный пароль. Доступ отклонен.")
 
     await state.clear()
 
@@ -123,7 +126,7 @@ async def cmd_ban(message: types.Message):
 
     async with pool.acquire() as conn:
         if not await conn.fetchrow("SELECT telegram_id FROM admins WHERE telegram_id = $1", telegram_id):
-            await message.answer("❌ У вас нет прав администратора. Авторизуйтесь через /t0ad.")
+            await message.answer("У вас нет прав администратора. Авторизуйтесь через /t0ad.")
             return
 
     args = message.text.split(maxsplit=2)
@@ -138,7 +141,7 @@ async def cmd_ban(message: types.Message):
     async with pool.acquire() as conn:
         await conn.execute("INSERT INTO pending_commands (command) VALUES ($1)", command_to_execute)
 
-    await message.answer(f"🔨 Отправлена команда на бан игрока `{player_to_ban}`.\nПричина: _{reason}_", parse_mode="Markdown")
+    await message.answer(f"Отправлена команда на бан игрока `{player_to_ban}`.\nПричина: _{reason}_", parse_mode="Markdown")
 
 @dp.message(F.text.func(lambda text: bool(re.fullmatch(r'\d{6}', text.strip()))))
 async def process_code(message: types.Message):
@@ -150,14 +153,14 @@ async def process_code(message: types.Message):
     async with pool.acquire() as conn:
         row = await conn.fetchrow("SELECT uuid FROM pending_codes WHERE code = $1 AND expires_at > $2", code, now)
         if not row:
-            await message.answer("❌ Неверный или истекший код. Запросите новый код на сервере через /link.")
+            await message.answer("Неверный или истекший код. Запросите новый код на сервере через /link.")
             return
 
         uuid = row['uuid']
         await conn.execute("INSERT INTO linked_players (uuid, telegram_id, created_at) VALUES ($1, $2, $3) ON CONFLICT (uuid) DO UPDATE SET telegram_id = EXCLUDED.telegram_id", uuid, telegram_id, now)
         await conn.execute("DELETE FROM pending_codes WHERE code = $1", code)
 
-        await message.answer(f"✅ **Аккаунт успешно привязан!**\n\nВаш UUID: `{uuid}`", parse_mode="Markdown")
+        await message.answer(f"Аккаунт привязан.\n\nВаш UUID: `{uuid}`", parse_mode="Markdown")
 
 async def main():
     pool = await get_db_pool()
